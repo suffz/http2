@@ -403,13 +403,15 @@ type Request struct {
 
 func (R *Request) Commit() (*http.Response, error) {
 	var request *http.Request = R.Request.Clone(R.Request.Context())
-	request.Body = io.NopCloser(R.Request.Body)
-	var Conn net.Conn = R.Conn
-	if R.NonSsl {
-		Conn = R.Conn.NetConn()
+	if R.Request.Body != nil {
+		request.Body = io.NopCloser(R.Request.Body)
 	}
-	request.Write(Conn)
-	return http.ReadResponse(bufio.NewReader(Conn), request)
+	if R.NonSsl {
+		request.Write(R.Conn.NetConn())
+		return http.ReadResponse(bufio.NewReader(R.Conn.NetConn()), request)
+	}
+	request.Write(R.Conn)
+	return http.ReadResponse(bufio.NewReader(R.Conn), request)
 }
 
 func (R *Request) ChangeURL(uri string) {
@@ -471,8 +473,8 @@ TBj0/VLZjmmx6BEP3ojY+x1J96relc8geMJgEtslQIxq/H5COEBkEveegeGTLg==
 			conn = tls.UClient(conn_, &tls.Config{
 				ServerName:         req.Host,
 				InsecureSkipVerify: true,
-				Renegotiation:      2,
-				RootCAs:            Roots,
+				//Renegotiation:      2,
+				//RootCAs:            Roots,
 			}, tls.HelloChrome_120_PQ, true, true)
 		}
 	}
