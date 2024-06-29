@@ -394,18 +394,22 @@ func GetDefaultConfig() Config {
 //////////////////////////////////////////////////////////////////////////////////////////
 
 type Request struct {
-	Port, Url, Host     string
-	Request             *http.Request
-	Conn                *tls.UConn
-	Proxy               *ProxyAuth
-	send_via_redir_func bool
+	Port, Url, Host string
+	Request         *http.Request
+	Conn            *tls.UConn
+	Proxy           *ProxyAuth
+	NonSsl          bool
 }
 
 func (R *Request) Commit() (*http.Response, error) {
 	var request *http.Request = R.Request.Clone(R.Request.Context())
 	request.Body = io.NopCloser(R.Request.Body)
-	request.Write(R.Conn)
-	return http.ReadResponse(bufio.NewReader(R.Conn), request)
+	var Conn net.Conn = R.Conn
+	if R.NonSsl {
+		Conn = R.Conn.NetConn()
+	}
+	request.Write(Conn)
+	return http.ReadResponse(bufio.NewReader(Conn), request)
 }
 
 func (R *Request) ChangeURL(uri string) {
@@ -484,7 +488,8 @@ func Build(req *http.Request, P *ProxyAuth) (Request, error) {
 		return port
 	}(req.URL.Scheme)
 	return Request{
-		Port: port, Url: req.URL.String(), Host: req.URL.Host,
+		NonSsl: port == ":80",
+		Port:   port, Url: req.URL.String(), Host: req.URL.Host,
 		Request: req,
 		Conn:    generateConn(req, P, port),
 	}, nil
